@@ -61,6 +61,42 @@ body[data-r=cli] #navcho,body[data-r=cho] #navcli{display:none}
 .sh{display:flex;justify-content:space-between;align-items:center}.sh b{font-size:18px;color:#ffe1a7}
 .tbar{height:6px;background:var(--c2);border-radius:99px;overflow:hidden;margin-top:12px}.tbar i{display:block;height:100%;background:var(--y);width:100%;transition:width 1s linear}
 .c.bad{background:rgba(255,180,171,.1);box-shadow:0 0 0 2px var(--err)}
+
+/* GPTAXI Chofer 2.0: pulido visual adaptable, sin cambiar la lógica de viajes */
+:root{--bg:#080f20;--lo:#070d1a;--c1:#111b30;--c2:#151f35;--c3:#202d46;--c4:#34415b;--ink:#f1f5ff;--mut:#aebbd2;--y:#ffd23f;--g:#45e6a8;--b:#82d7ff;--err:#ffaaa7}
+body{background:radial-gradient(ellipse at 50% -12%,rgba(55,91,155,.32),transparent 48%),var(--bg);letter-spacing:.005em}
+header{border-bottom:1px solid rgba(255,210,63,.12)}
+.brand img{box-shadow:0 0 0 2px rgba(255,210,63,.25),0 6px 18px #0006}
+.brand b{font-size:21px;letter-spacing:.04em;color:#fff0b8}
+main{padding-left:14px;padding-right:14px}
+h2{font-size:19px;letter-spacing:-.02em;margin-top:24px}
+p.s{color:#bdc9dd;opacity:.9;line-height:1.55}
+.c{border:1px solid rgba(171,195,235,.08);background:linear-gradient(145deg,rgba(29,43,68,.98),rgba(17,27,46,.98));border-radius:22px;padding:17px;box-shadow:0 9px 24px rgba(0,0,0,.22)}
+button{box-shadow:0 5px 14px rgba(255,190,20,.13);font-weight:800;letter-spacing:.005em}
+button.o{border:1px solid rgba(175,196,232,.13);box-shadow:none}
+button:not(:disabled):hover{filter:brightness(1.07)}
+input,select,textarea{border-color:#394967;background:#0a1427;border-radius:14px}
+input:focus,select:focus,textarea:focus{border-color:var(--y)}
+#dapp>div>h2:first-child{margin-top:8px}
+#hnew{display:flex;align-items:center;gap:8px}
+#new .c{border-color:rgba(255,210,63,.22)}
+.c.alert{background:linear-gradient(140deg,rgba(84,62,10,.55),rgba(27,31,42,.98));box-shadow:0 0 0 1px var(--y),0 10px 28px rgba(255,190,20,.1)}
+.c.go{background:linear-gradient(140deg,rgba(13,70,55,.42),rgba(17,34,48,.98))}
+.stat{gap:10px}
+.stat b{font-size:18px;letter-spacing:.03em}
+.stat button{white-space:nowrap}
+.grid2>div{background:rgba(5,13,28,.5);border:1px solid rgba(171,195,235,.08)}
+.price{color:#fff0b8;text-shadow:0 2px 12px rgba(255,210,63,.12)}
+.bar{background:#111b2d}
+.bn{border-top:1px solid rgba(255,210,63,.12)}
+.bn button{transition:background .16s,color .16s,transform .16s}
+.bn button.on{box-shadow:inset 0 0 0 1px rgba(255,210,63,.14)}
+.sheetin{border:1px solid rgba(255,210,63,.25);background:linear-gradient(145deg,#263650,#121c30)}
+#pstat{padding:12px 13px;border-radius:14px;background:rgba(4,12,25,.42);border:1px solid rgba(155,181,220,.12);overflow-wrap:anywhere}
+#pushd{background:linear-gradient(100deg,#ffe36b,#ffc928);color:#302300}
+#ptest{overflow-wrap:anywhere}
+@media(min-width:420px){main{padding-left:18px;padding-right:18px}.c{padding:19px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 </style></head>
 <body data-r="cho">
 <header><div class="hb"><div class="brand"><img src="icon-192.png" alt="GPTAXI"><div><b>GPTAXI</b><small>Choferes</small></div></div>
@@ -108,7 +144,7 @@ body[data-r=cli] #navcho,body[data-r=cho] #navcli{display:none}
 <p class="s">Precio = base + km × tarifa por km. Podés ajustarlo en cada pedido antes de enviarlo.</p>
 <label for="mt">Meta diaria ($)</label><input id="mt" type="number" inputmode="numeric" min="0">
 <h2>Notificaciones</h2><p class="s" id="pstat"></p>
-<button id="pushd" hidden onclick="activarPush('chofer')">🔔 Activar notificaciones de viajes (suenan con la app cerrada)</button>
+<button id="pushd" onclick="activarPush('chofer')">🔔 Activar / reparar notificaciones de viajes</button>
 <button class="o" onclick="probarNotif('chofer')">Probar notificación y sonido</button>
 <button class="o" onclick="probarServidor()">Probar aviso real del servidor (después bloqueá el celular)</button><p class="s" id="ptest"></p>
 <details class="c"><summary>📲 Aviso extra con la app ntfy (más seguro)</summary>
@@ -136,7 +172,7 @@ body[data-r=cli] #navcho,body[data-r=cho] #navcli{display:none}
 <button id="nh-perfil" onclick="vcho('perfil')"><span class="material-symbols-outlined">person</span>Perfil</button>
 </nav>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 const db=supabase.createClient("https://vffcjijwrgerdyujvlcf.supabase.co","sb_publishable_rv-VVSkeii8-_0pfS-EZCw_d2XkD1-Q",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const $=i=>document.getElementById(i);
@@ -334,18 +370,38 @@ $("dl").replaceChildren(...warn,...(data.length?data.map(d=>drvCard(d,by[d.user_
 const VAPID="BGsIfi8ZkrDD8mglmkExXZk-_JIl4s6uBIaKLTzEFmfkflN2iFPLWY2BXNBI9VWi2L4EInr68IMoPj2dJa_pTJM";
 const cid=store.get("cid")||(()=>{const v=crypto.randomUUID();store.set("cid",v);return v})();
 const b64=u=>{const a=atob((u+"=".repeat((4-u.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...a].map(c=>c.charCodeAt(0)))};
-function refreshPushUI(){const ok=!("Notification" in window)||Notification.permission==="granted";$("pushd").hidden=ok}
-async function activarPush(rol,silent){const al=m=>{if(!silent)alert(m)};
-if(!("serviceWorker" in navigator)||!("PushManager" in window))return al("Este navegador no permite notificaciones. Abrí la app desde Chrome.");
-const p=await Notification.requestPermission();refreshPushUI();
-if(p!=="granted")return al("No diste permiso. Activá las notificaciones de GPTAXI en los ajustes del celular.");
-try{const reg=await navigator.serviceWorker.ready;
-const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)});
-const {error}=await db.rpc("save_push",{p_role:rol,p_client_id:rol==="cliente"?cid:null,p_sub:sub.toJSON()});
-if(error)return al("No se pudo activar: "+error.message);al("✅ Notificaciones activadas.")}catch(e){al("No se pudo activar: "+e.message)}}
-async function probarNotif(rol){if(!("Notification" in window)||Notification.permission!=="granted")return alert("Primero activá las notificaciones.");
-const t=rol==="cliente"?["🏍️ ¡Tu mototaxi va en camino!","Juan sale a buscarte a Plaza central.\n(Notificación de prueba)"]:["🏍️ ¡NUEVO VIAJE!","📍 Recogida: Plaza central\n🏁 Destino: Hospital\n📏 3.2 km · Cliente de prueba"];
-const reg=await navigator.serviceWorker.ready;reg.showNotification(t[0],{body:t[1],icon:"icon-192.png",badge:"badge-96.png",tag:"prueba",renotify:true,requireInteraction:true,lang:"es",vibrate:[600,200,600,200,600,200,900]})}
+function refreshPushUI(){
+ const btn=$("pushd");
+ if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window)){
+   btn.textContent="⚠️ Este navegador no admite push";btn.disabled=true;return;
+ }
+ btn.disabled=false;
+ btn.textContent=Notification.permission==="granted"?"🔄 Revisar / reparar notificaciones de viajes":"🔔 Activar notificaciones de viajes";
+}
+async function activarPush(rol,silent){
+ const al=m=>{if(!silent)alert(m)};
+ if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return al("Este navegador no permite notificaciones push. Abrí GPTAXI desde Chrome y comprobá que esté instalada o publicada mediante HTTPS.");
+ try{
+   let p=Notification.permission;
+   if(p!=="granted")p=await Notification.requestPermission();
+   refreshPushUI();
+   if(p!=="granted")return al(p==="denied"?"Las notificaciones están bloqueadas en Android/Chrome. Habilitalas desde los ajustes del sitio GPTAXI y volvé a intentar.":"No se concedió el permiso para notificaciones.");
+   const reg=await navigator.serviceWorker.ready;
+   let sub=await reg.pushManager.getSubscription();
+   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)});
+   const {error}=await db.rpc("save_push",{p_role:rol,p_client_id:rol==="cliente"?cid:null,p_sub:sub.toJSON()});
+   if(error){$("pstat").textContent="Permiso concedido, pero no se pudo guardar la suscripción en el servidor: "+error.message;return al("No se pudo registrar la suscripción push en el servidor: "+error.message)}
+   await estadoPush();al("✅ Permiso concedido y suscripción guardada. Esto confirma el registro, pero la entrega con la app cerrada debe comprobarse con la prueba real del servidor.");
+ }catch(e){refreshPushUI();$("pstat").textContent="Error al activar push: "+(e&&e.message||e);al("No se pudo activar las notificaciones: "+(e&&e.message||e))}
+}
+async function probarNotif(rol){
+ if(!("Notification" in window)||Notification.permission!=="granted")return alert("Primero activá las notificaciones.");
+ try{
+  const t=rol==="cliente"?["🏍️ ¡Tu mototaxi va en camino!","Juan sale a buscarte a Plaza central.\n(Notificación de prueba)"]:["🏍️ ¡NUEVO VIAJE!","📍 Recogida: Plaza central\n🏁 Destino: Hospital\n📏 3.2 km · Cliente de prueba"];
+  const reg=await navigator.serviceWorker.ready;
+  await reg.showNotification(t[0],{body:t[1],icon:"icon-192.png",badge:"badge-96.png",tag:"prueba-local-"+Date.now(),renotify:true,requireInteraction:true,lang:"es",vibrate:[600,200,600,200,600,200,900]});
+ }catch(e){alert("No se pudo mostrar la notificación de prueba: "+(e&&e.message||e))}
+}
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push"){loadD()}});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){if(uid&&!isAdm&&!$("wait").hidden)sesion();loadD()}});
 refreshPushUI();
@@ -373,11 +429,17 @@ if(sheetId!==r.id){sheetId=r.id;$("shtitle").textContent=r.pickup_loc?"¡Nueva s
 tmr=setInterval(()=>{tleft--;$("cd").textContent=Math.max(tleft,0)+"s";$("cbar").style.width=Math.max(tleft,0)/15*100+"%";if(tleft<0){dism.add(sheetId);hideSheet();loadD()}},1000);
 $("sheetBody").replaceChildren(quote(r,true))}}
 
-async function estadoPush(){const e=$("pstat");
-if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window)){e.textContent="Este navegador no soporta notificaciones push.";return}
-let sub=null;try{const reg=await navigator.serviceWorker.ready;sub=await reg.pushManager.getSubscription()}catch(x){}
-const per={granted:"✅ concedido",denied:"❌ bloqueado",default:"⚠️ sin responder"}[Notification.permission];
-e.textContent="Permiso: "+per+" · Suscripción en este celular: "+(sub?"✅ sí":"❌ no (tocá Activar)")+" · App: "+(matchMedia("(display-mode: standalone)").matches?"✅ instalada":"⚠️ abierta desde el navegador")}
+async function estadoPush(){
+ const e=$("pstat");
+ if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window)){
+   e.textContent="Este navegador no soporta notificaciones push. Abrí GPTAXI desde Chrome actualizado y HTTPS.";refreshPushUI();return;
+ }
+ let sub=null,sw=false;
+ try{const reg=await navigator.serviceWorker.ready;sw=!!reg.active;sub=await reg.pushManager.getSubscription()}catch(x){}
+ const per={granted:"✅ permiso concedido",denied:"❌ permiso bloqueado",default:"⚠️ permiso pendiente"}[Notification.permission]||"⚠️ estado desconocido";
+ e.textContent="Permiso del navegador: "+per+" · Service Worker: "+(sw?"✅ activo":"⚠️ no confirmado")+" · Suscripción push: "+(sub?"✅ registrada en este celular":"❌ no registrada")+" · Instalación: "+(matchMedia("(display-mode: standalone)").matches?"app instalada":"navegador");
+ refreshPushUI();
+}
 
 /* ---------- TIEMPO REAL ---------- */
 db.channel("rides-cho").on("postgres_changes",{event:"*",schema:"public",table:"rides"},()=>{loadD()}).subscribe();
