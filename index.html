@@ -117,6 +117,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--y)}
 <label for="rp">Período</label><select id="rp"><option value="hoy">Hoy</option><option value="mes" selected>Este mes</option><option value="todo">Todo</option></select>
 <div id="fact"></div>
 <h2>Mensajes de clientes</h2><div id="msgs"></div>
+<h2>📈 Clientes y crecimiento</h2><p class="s">Control de clientes que solicitaron al menos un viaje. Los datos se calculan a partir de los pedidos guardados en GPTAXI.</p><div id="clientstats"></div><div class="row"><div><label for="clientperiod">Período de actividad</label><select id="clientperiod"><option value="todo">Todo el historial</option><option value="mes">Este mes</option><option value="hoy">Hoy</option></select></div><div style="display:flex;align-items:end"><button class="o" id="clientrefresh" type="button">Actualizar lista</button></div></div><div id="clientlist"></div>
 <h2>Choferes</h2><div id="dl"></div></div>
 
 <div id="dapp" hidden>
@@ -361,7 +362,58 @@ $("msgs").replaceChildren(...(data.length?data.map(m=>{const c=el("div","c");c.a
 const a=el("button","o",m.leido?"Marcar como no leído":"Marcar como leído");a.onclick=async()=>{await db.from("messages").update({leido:!m.leido}).eq("id",m.id);loadMsg()};
 const x=el("button","o","Borrar mensaje");x.onclick=async()=>{await db.from("messages").delete().eq("id",m.id);loadMsg()};c.append(a,x);return c}):[empty("No hay mensajes.")]))}
 $("rp").onchange=loadFact;
-async function loadAdm(){loadFact();loadMsg();const [{data,error},pr]=await Promise.all([db.from("drivers").select().order("name"),db.from("membership_payments").select().order("paid_at",{ascending:false})]);if(error)return $("e2").textContent=error.message;
+function clientIdentity(r){
+ const id=r.client_id||r.client_user_id||r.customer_id||r.passenger_id||r.client_phone||r.phone;
+ if(id!=null&&String(id).trim())return "id:"+String(id).trim();
+ const name=String(r.client_name||"").trim().replace(/\s+/g," ");
+ return name?"name:"+name.toLocaleLowerCase("es-AR"):null;
+}
+function clientLabel(r){
+ const n=String(r.client_name||"").trim();
+ const phone=r.client_phone||r.phone;
+ return (n||"Cliente sin nombre")+(phone?" · "+phone:"");
+}
+async function loadClients(){
+ const box=$("clientlist"),stats=$("clientstats");
+ const period=$("clientperiod")?.value||"todo";
+ let q=db.from("rides").select("*").order("created_at",{ascending:false});
+ const now=new Date();
+ if(period==="hoy"){const d=new Date(now);d.setHours(0,0,0,0);q=q.gte("created_at",d.toISOString())}
+ else if(period==="mes"){q=q.gte("created_at",new Date(now.getFullYear(),now.getMonth(),1).toISOString())}
+ const {data,error}=await q;
+ if(error){stats.replaceChildren(el("div","c bad","No se pudo cargar la lista de clientes: "+error.message));box.replaceChildren();return}
+ const rides=data||[],groups=new Map();let unnamed=0;
+ for(const r of rides){
+  const key=clientIdentity(r);
+  if(!key){unnamed++;continue}
+  let g=groups.get(key);
+  if(!g){g={key,label:clientLabel(r),count:0,first:r.created_at,last:r.created_at,status:r.status||"",rides:[]};groups.set(key,g)}
+  g.count++;g.rides.push(r);
+  if(r.created_at&&(!g.first||new Date(r.created_at)<new Date(g.first)))g.first=r.created_at;
+  if(r.created_at&&(!g.last||new Date(r.created_at)>new Date(g.last))) {g.last=r.created_at;g.label=clientLabel(r);g.status=r.status||""}
+ }
+ const known=groups.size, total=rides.length, monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+ const monthRides=rides.filter(r=>r.created_at&&new Date(r.created_at)>=monthStart).length;
+ const todayStart=new Date(now);todayStart.setHours(0,0,0,0);
+ const todayRides=rides.filter(r=>r.created_at&&new Date(r.created_at)>=todayStart).length;
+ const stat=el("div","grid2");
+ for(const [label,value,sub] of [["Clientes identificados",known,"Personas distintas según ID o nombre"],["Solicitudes registradas",total,"En el período seleccionado"],["Pedidos este mes",monthRides,"Todas las solicitudes del mes"],["Pedidos hoy",todayRides,"Todas las solicitudes de hoy"]]){const c=el("div"),b=el("b",0,String(value));b.style.fontSize="23px";c.append(el("small",0,label),b,el("small",0,sub));stat.append(c)}
+ stats.replaceChildren(stat);
+ const rows=[...groups.values()].sort((a,b)=>new Date(b.last||0)-new Date(a.last||0));
+ if(!rows.length){box.replaceChildren(el("div","c",total?"Hay solicitudes, pero no se pudo identificar al cliente porque los pedidos no guardan nombre ni identificador.":"Todavía no hay solicitudes de viaje registradas."));return}
+ box.replaceChildren(...rows.map(g=>{
+  const c=el("div","c");
+  c.append(el("span","st",g.count===1?"1 solicitud":g.count+" solicitudes"),el("b",0,g.label),el("span",0,"Primer pedido: "+(g.first?new Date(g.first).toLocaleString("es-AR"):"—")),el("br"),el("span",0,"Último pedido: "+(g.last?new Date(g.last).toLocaleString("es-AR"):"—")),el("br"),el("span",0,"Último estado: "+(g.status||"sin estado")));
+  const recent=g.rides.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,5);
+  const details=el("details");details.style.marginTop="10px";details.append(el("summary",0,"Ver últimos viajes ("+Math.min(g.count,5)+")"));
+  for(const r of recent){details.append(el("p","s",(r.created_at?new Date(r.created_at).toLocaleString("es-AR"):"Fecha desconocida")+" · "+(r.pickup||"Origen sin datos")+" → "+(r.dropoff||"Destino sin datos")+" · "+(r.status||"sin estado")))}
+  c.append(details);return c;
+ }));
+ if(unnamed){const n=el("p","s",unnamed+" solicitud(es) no se pudieron asignar a una persona porque no tienen nombre ni identificador de cliente guardado.");box.append(n)}
+}
+$("clientperiod").onchange=loadClients;
+$("clientrefresh").onclick=loadClients;
+async function loadAdm(){loadFact();loadMsg();loadClients();const [{data,error},pr]=await Promise.all([db.from("drivers").select().order("name"),db.from("membership_payments").select().order("paid_at",{ascending:false})]);if(error)return $("e2").textContent=error.message;
 const by={};(pr.data||[]).forEach(p=>(by[p.user_id]||(by[p.user_id]=[])).push(p));
 const warn=pr.error?[(()=>{const c=el("div","c bad");c.append(el("b",0,"Falta configurar las membresías en Supabase"),el("span",0,"Ejecutá el SQL de membresías (membresias.sql) para activar fechas y pagos."));return c})()]:[];
 $("dl").replaceChildren(...warn,...(data.length?data.map(d=>drvCard(d,by[d.user_id]||[])):[empty("Todavía no hay choferes registrados.")]))}
@@ -442,6 +494,6 @@ async function estadoPush(){
 }
 
 /* ---------- TIEMPO REAL ---------- */
-db.channel("rides-cho").on("postgres_changes",{event:"*",schema:"public",table:"rides"},()=>{loadD()}).subscribe();
+db.channel("rides-cho").on("postgres_changes",{event:"*",schema:"public",table:"rides"},()=>{if(isAdm)loadClients();else loadD()}).subscribe();
 setInterval(()=>{loadD()},4000);sesion();
 </script></body></html>
