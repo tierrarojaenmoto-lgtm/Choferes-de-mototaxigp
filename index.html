@@ -124,8 +124,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--y)}
 <div id="dv-viajes">
 <div id="memv"></div>
 <div id="alerts"></div>
-<div class="c stat"><i class="dot" id="sdot"></i><div><b id="slab">DESCONECTADO</b><small id="ssub">Tocá para volver al servicio</small></div>
-<button id="sbtn" class="o" onclick="toggleOnline()"><span>Conectar</span><span class="material-symbols-outlined">power_settings_new</span></button></div>
+<div class="c stat"><i class="dot" id="sdot"></i><div><b id="slab">EN LÍNEA</b><small id="ssub">Siempre conectado: recibís viajes nuevos</small></div>
+</div>
 <input id="av" type="checkbox" hidden>
 <div class="c"><span class="lbl">Ganancias de hoy</span><b class="price" id="gh">$0</b>
 <div class="grid2"><div><small>Completados</small><b id="ch">0 viajes</b></div><div><small>Cobrado</small><b id="gp" style="font-size:13px">–</b></div></div>
@@ -191,7 +191,7 @@ await reg.showNotification(title,{body,icon:"icon-192.png",badge:"badge-96.png",
 let watch=null,lastSend=0,activeIds=[];
 $("cn").value=store.get("chofer")||"";$("tb").value=store.get("tb")||1000;$("tk").value=store.get("tk")||800;
 $("cn").onchange=()=>{store.set("chofer",$("cn").value);loadD()};
-$("cm").value=store.get("moto")||"";$("av").checked=store.get("av")==="1";
+$("cm").value=store.get("moto")||"";$("av").checked=true;
 $("cm").onchange=()=>{store.set("moto",$("cm").value);loadD()};$("av").onchange=()=>{store.set("av",$("av").checked?"1":"0");loadD()};
 $("tb").oninput=$("tk").oninput=()=>{store.set("tb",$("tb").value);store.set("tk",$("tk").value);loadD()};
 async function setS(id,status,extra={}){const n=$("cn").value.trim();$("e2").textContent="";
@@ -228,7 +228,7 @@ async function loadD(){if(!uid||!me)return;if(!memInfo(me).ok){if(!$("wait").hid
 const {data:dm,error:de}=await db.from("drivers").select().eq("user_id",uid).maybeSingle();if(de)return;
 if(!dm||!memInfo(dm).ok){track(false);return sesion()}
 me=dm;renderMem();
-db.from("drivers").update({alias:$("al").value.trim(),moto:$("cm").value.trim(),available:$("av").checked,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{});
+db.from("drivers").update({alias:$("al").value.trim(),moto:$("cm").value.trim(),available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{});
 const {data,error}=await db.from("rides").select().order("created_at");
 if(error)return $("e2").textContent=error.message;
 const act=["cotizado","aceptado","en_camino","en_viaje"],mine=n?data.filter(r=>act.includes(r.status)&&r.driver_name===n&&!(r.status==="cotizado"&&Date.now()-new Date(r.quoted_at||r.created_at)>6e5)):[],nw=data.filter(r=>r.status==="pendiente"&&Date.now()-new Date(r.created_at)<18e5&&!(r.rejected_by||[]).includes(n)),
@@ -478,9 +478,9 @@ if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWor
 
 const NAV={cho:["viajes","act","bil","perfil"]};
 function vcho(v){for(const k of NAV.cho){$("dv-"+k).hidden=k!==v;$("nh-"+k).classList.toggle("on",k===v)}if(v==="perfil")estadoPush()}
-function renderStatus(){const on=$("av").checked;$("slab").textContent=on?"EN LÍNEA":"DESCONECTADO";$("slab").style.color=on?"var(--g)":"var(--mut)";
-$("ssub").textContent=on?"Recibís viajes nuevos":"Tocá para volver al servicio";$("sdot").className="dot"+(on?" on":"");$("sbtn").firstElementChild.textContent=on?"Desconectar":"Conectar"}
-function toggleOnline(){$("av").checked=!$("av").checked;renderStatus();$("av").onchange()}
+function renderStatus(){$("av").checked=true;const on=true;$("slab").textContent=on?"EN LÍNEA":"DESCONECTADO";$("slab").style.color=on?"var(--g)":"var(--mut)";
+$("ssub").textContent=on?"Recibís viajes nuevos":"Tocá para volver al servicio";$("sdot").className="dot"+(on?" on":"");}
+function toggleOnline(){}
 $("mt").value=store.get("meta")||50000;$("mt").onchange=()=>{store.set("meta",$("mt").value);loadD()};
 let sheetId=null,tleft=0,tmr=null;const dism=new Set();
 function hideSheet(){$("sheet").hidden=true;sheetId=null;clearInterval(tmr)}
