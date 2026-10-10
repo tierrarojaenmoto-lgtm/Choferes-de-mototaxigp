@@ -506,5 +506,24 @@ async function estadoPush(){
 
 /* ---------- TIEMPO REAL ---------- */
 db.channel("rides-cho").on("postgres_changes",{event:"*",schema:"public",table:"rides"},()=>{if(isAdm)loadClients();else loadD()}).subscribe();
+
+/* ---------- MANTENER VIVA LA APP CON LA PANTALLA BLOQUEADA ---------- */
+(function(){
+let au=null,wl=null;
+function wav(){const sr=8000,n=sr,b=new ArrayBuffer(44+n),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};
+w(0,"RIFF");v.setUint32(4,36+n,true);w(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,"data");v.setUint32(40,n,true);
+for(let i=0;i<n;i++)v.setUint8(44+i,128);return URL.createObjectURL(new Blob([b],{type:"audio/wav"}))}
+function start(){if(!uid||isAdm)return;
+ if(!au){au=new Audio(wav());au.loop=true;au.volume=0.01}
+ if(au.paused)au.play().catch(()=>{});
+ try{if("mediaSession" in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:"GPTAXI · En línea",artist:"Recibiendo viajes",album:"GPTAXI"});
+  navigator.mediaSession.playbackState="playing";navigator.mediaSession.setActionHandler("pause",()=>{au&&au.play().catch(()=>{})});navigator.mediaSession.setActionHandler("play",()=>{au&&au.play().catch(()=>{})})}}catch(e){}}
+function ping(){if(uid&&!isAdm&&me)db.from("drivers").update({available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{})}
+for(const ev of["touchstart","click"])addEventListener(ev,start,{passive:true});
+setInterval(()=>{start();ping()},20000);
+document.addEventListener("visibilitychange",()=>{start();ping()});
+addEventListener("online",ping);
+try{navigator.locks&&navigator.locks.request("gptaxi-vivo",()=>new Promise(()=>{}))}catch(e){}
+})();
 setInterval(()=>{loadD()},4000);sesion();
 </script></body></html>
