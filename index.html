@@ -174,6 +174,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--y)}
 </nav>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
 const db=supabase.createClient("https://vffcjijwrgerdyujvlcf.supabase.co","sb_publishable_rv-VVSkeii8-_0pfS-EZCw_d2XkD1-Q",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const $=i=>document.getElementById(i);
@@ -430,20 +432,27 @@ function refreshPushUI(){
  btn.disabled=false;
  btn.textContent=Notification.permission==="granted"?"🔄 Revisar / reparar notificaciones de viajes":"🔔 Activar notificaciones de viajes";
 }
+const FB_CFG={apiKey:"AIzaSyB9LEKcYzjYRrnvjG2hEOLO_jDK763qbHA",authDomain:"gpataxichofer.firebaseapp.com",projectId:"gpataxichofer",messagingSenderId:"355052013384",appId:"1:355052013384:web:c0af226507b785513d557d"};
+const FCM_VAPID="BC8K7aPWGswCIoXeEv0BqJSsTAIAf1H8ET29sQuzGGlu9inH5fhAF56uNsoY6jjV2H70zjn90V8oKqTXMuMu_hU";
+let fbm=null;
+try{if(window.firebase&&firebase.messaging.isSupported()){firebase.initializeApp(FB_CFG);fbm=firebase.messaging()}}catch(e){}
+if(fbm)fbm.onMessage(p=>{const d=p.data||{};notif(d.title||"GPTAXI",d.body||"",d.tag);loadD()});
 async function activarPush(rol,silent){
  const al=m=>{if(!silent)alert(m)};
- if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return al("Este navegador no permite notificaciones push. Abrí GPTAXI desde Chrome y comprobá que esté instalada o publicada mediante HTTPS.");
+ if(!fbm||!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return al("Este navegador no permite notificaciones push. Abrí GPTAXI desde Chrome por HTTPS.");
  try{
    let p=Notification.permission;
    if(p!=="granted")p=await Notification.requestPermission();
    refreshPushUI();
-   if(p!=="granted")return al(p==="denied"?"Las notificaciones están bloqueadas en Android/Chrome. Habilitalas desde los ajustes del sitio GPTAXI y volvé a intentar.":"No se concedió el permiso para notificaciones.");
-   const reg=await navigator.serviceWorker.ready;
-   let sub=await reg.pushManager.getSubscription();
-   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)});
-   const {error}=await db.rpc("save_push",{p_role:rol,p_client_id:rol==="cliente"?cid:null,p_sub:sub.toJSON()});
-   if(error){$("pstat").textContent="Permiso concedido, pero no se pudo guardar la suscripción en el servidor: "+error.message;return al("No se pudo registrar la suscripción push en el servidor: "+error.message)}
-   await estadoPush();al("✅ Permiso concedido y suscripción guardada. Esto confirma el registro, pero la entrega con la app cerrada debe comprobarse con la prueba real del servidor.");
+   if(p!=="granted")return al(p==="denied"?"Las notificaciones están bloqueadas. Habilitalas desde los ajustes del sitio GPTAXI y volvé a intentar.":"No se concedió el permiso para notificaciones.");
+   const reg=await navigator.serviceWorker.register("firebase-messaging-sw.js",{scope:"./fcm-scope/"});
+   await navigator.serviceWorker.ready;
+   const token=await fbm.getToken({vapidKey:FCM_VAPID,serviceWorkerRegistration:reg});
+   if(!token)throw new Error("Firebase no devolvió token");
+   const {error}=await db.rpc("save_fcm_token",{p_role:rol,p_client_id:rol==="cliente"?cid:null,p_token:token});
+   if(error){$("pstat").textContent="Token obtenido, pero no se pudo guardar en el servidor: "+error.message;return al("No se pudo registrar el token: "+error.message)}
+   try{const r0=await navigator.serviceWorker.ready;const o=await r0.pushManager.getSubscription();if(o)await o.unsubscribe()}catch(x){} /* evita avisos duplicados del sistema anterior */
+   store.set("fcm",token);await estadoPush();al("✅ Notificaciones activadas con Firebase en este celular.");
  }catch(e){refreshPushUI();$("pstat").textContent="Error al activar push: "+(e&&e.message||e);al("No se pudo activar las notificaciones: "+(e&&e.message||e))}
 }
 async function probarNotif(rol){
@@ -457,6 +466,8 @@ async function probarNotif(rol){
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push"){loadD()}});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){if(uid&&!isAdm&&!$("wait").hidden)sesion();loadD()}});
 refreshPushUI();
+const renovar=()=>{if("Notification" in window&&Notification.permission==="granted"&&typeof uid!=="undefined"&&uid&&!isAdm)activarPush("chofer",true)};
+setTimeout(renovar,3500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(renovar,1500)});
 
 /* ---------- INSTALAR COMO APP ---------- */
 let ip=null;
@@ -487,7 +498,7 @@ async function estadoPush(){
    e.textContent="Este navegador no soporta notificaciones push. Abrí GPTAXI desde Chrome actualizado y HTTPS.";refreshPushUI();return;
  }
  let sub=null,sw=false;
- try{const reg=await navigator.serviceWorker.ready;sw=!!reg.active;sub=await reg.pushManager.getSubscription()}catch(x){}
+ try{const reg=await navigator.serviceWorker.ready;sw=!!reg.active;sub=store.get("fcm")}catch(x){}
  const per={granted:"✅ permiso concedido",denied:"❌ permiso bloqueado",default:"⚠️ permiso pendiente"}[Notification.permission]||"⚠️ estado desconocido";
  e.textContent="Permiso del navegador: "+per+" · Service Worker: "+(sw?"✅ activo":"⚠️ no confirmado")+" · Suscripción push: "+(sub?"✅ registrada en este celular":"❌ no registrada")+" · Instalación: "+(matchMedia("(display-mode: standalone)").matches?"app instalada":"navegador");
  refreshPushUI();
