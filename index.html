@@ -228,7 +228,7 @@ async function loadD(){if(!uid||!me)return;if(!memInfo(me).ok){if(!$("wait").hid
 const {data:dm,error:de}=await db.from("drivers").select().eq("user_id",uid).maybeSingle();if(de)return;
 if(!dm||!memInfo(dm).ok){track(false);return sesion()}
 me=dm;renderMem();
-db.from("drivers").update({alias:$("al").value.trim(),moto:$("cm").value.trim(),available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{});
+if(!saliendo)db.from("drivers").update({alias:$("al").value.trim(),moto:$("cm").value.trim(),available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{});
 const {data,error}=await db.from("rides").select().order("created_at");
 if(error)return $("e2").textContent=error.message;
 const act=["cotizado","aceptado","en_camino","en_viaje"],mine=n?data.filter(r=>act.includes(r.status)&&r.driver_name===n&&!(r.status==="cotizado"&&Date.now()-new Date(r.quoted_at||r.created_at)>6e5)):[],nw=data.filter(r=>r.status==="pendiente"&&Date.now()-new Date(r.created_at)<18e5&&!(r.rejected_by||[]).includes(n)),
@@ -275,7 +275,7 @@ if(!t){t="gptaxi-"+crypto.randomUUID().replace(/-/g,"");const {error}=await db.f
 $("ntop").textContent=t;try{await navigator.clipboard.writeText(t);$("ncp").textContent="✅ Código copiado. Pegalo en la app ntfy."}catch(e){$("ncp").textContent="Copiá el código de arriba a mano."}}
 
 /* ---------- LOGIN, MEMBRESÍA Y ADMIN ---------- */
-let me=null,uid=null,isAdm=false;
+let me=null,uid=null,isAdm=false,saliendo=false;
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 db.auth.onAuthStateChange(ev=>store.set("ae",ev+" · "+new Date().toLocaleString("es-AR")));
 const tr=e=>e&&(/Retryable/i.test(e.name||"")||!e.status||e.status>=500);
@@ -310,7 +310,11 @@ const n=$("rn").value.trim();if(!n)return $("e2").textContent="Escribí tu nombr
 const {data,error}=await db.auth.signUp({email:$("em").value.trim(),password:$("pw").value,options:{data:{name:n,moto:$("rm").value.trim()}}});
 if(error)return $("e2").textContent=error.message;
 if(!data.session)return $("e2").textContent="Cuenta creada. Revisá tu correo para confirmarla y después entrá.";sesion()}
-async function salir(){if(uid&&!isAdm)await db.from("drivers").update({available:false}).eq("user_id",uid);await db.auth.signOut();sesion()}
+async function salir(){saliendo=true;
+try{if(uid&&!isAdm){const off=()=>db.from("drivers").update({available:false,last_seen:new Date().toISOString()}).eq("user_id",uid);
+await new Promise(r=>setTimeout(r,500));await off();await new Promise(r=>setTimeout(r,800));await off()}}catch(e){}
+try{await db.auth.signOut()}catch(e){}
+saliendo=false;sesion()}
 /* ---------- MEMBRESÍA ---------- */
 const DAY=864e5,fdate=d=>new Date(d).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 const mny=v=>v!=null?money(v):"sin monto";
@@ -518,7 +522,7 @@ function start(){if(!uid||isAdm)return;
  if(au.paused)au.play().catch(()=>{});
  try{if("mediaSession" in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:"GPTAXI · En línea",artist:"Recibiendo viajes",album:"GPTAXI"});
   navigator.mediaSession.playbackState="playing";navigator.mediaSession.setActionHandler("pause",()=>{au&&au.play().catch(()=>{})});navigator.mediaSession.setActionHandler("play",()=>{au&&au.play().catch(()=>{})})}}catch(e){}}
-function ping(){if(uid&&!isAdm&&me)db.from("drivers").update({available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{})}
+function ping(){if(uid&&!isAdm&&me&&!saliendo)db.from("drivers").update({available:true,last_seen:new Date().toISOString()}).eq("user_id",uid).then(()=>{})}
 for(const ev of["touchstart","click"])addEventListener(ev,start,{passive:true});
 setInterval(()=>{start();ping()},20000);
 document.addEventListener("visibilitychange",()=>{start();ping()});
