@@ -148,6 +148,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--y)}
 <button id="pushd" onclick="activarPush('chofer')">🔔 Activar / reparar notificaciones de viajes</button>
 <button class="o" onclick="probarNotif('chofer')">Probar notificación y sonido</button>
 <button class="o" onclick="probarServidor()">Probar aviso real del servidor (después bloqueá el celular)</button><p class="s" id="ptest"></p>
+<details class="c" open ontoggle="if(this.open)estadoTg()"><summary>✈️ Avisos de viajes por Telegram (recomendado)</summary>
+<p class="s">1) Instalá <b style="display:inline">Telegram</b> desde Play Store.<br>2) Tocá "Vincular Telegram" y después el enlace que aparece.<br>3) En Telegram tocá <b style="display:inline">Iniciar</b>.<br>4) Volvé acá y tocá "Probar aviso real del servidor".</p>
+<button onclick="vincularTg()">Vincular Telegram</button>
+<p class="s" id="tgst"></p></details>
 <details class="c"><summary>📲 Aviso extra con la app ntfy (más seguro)</summary>
 <p class="s">1) Instalá la app <b style="display:inline">ntfy</b> desde Play Store.<br>2) Tocá "Obtener mi código" (se copia solo).<br>3) En ntfy tocá <b style="display:inline">+</b>, pegá el código y suscribite.<br>4) Tocá "Probar aviso real del servidor".</p>
 <button onclick="miCodigo()">Obtener mi código</button>
@@ -269,6 +273,17 @@ const {error}=await db.rpc("test_push");if(error){t.textContent="No se pudo prob
 t.textContent="Prueba enviada. Bloqueá el celular y esperá unos segundos…";
 setTimeout(async()=>{const {data}=await db.rpc("last_push_status");t.textContent="Respuesta del servidor: "+data},6000)}
 
+async function estadoTg(){if(!uid)return;const r=await db.from("driver_private").select("telegram_chat_id").eq("user_id",uid).maybeSingle();
+$("tgst").textContent=r.data&&r.data.telegram_chat_id?"✅ Telegram vinculado: los viajes nuevos te llegan ahí.":"Telegram sin vincular."}
+async function vincularTg(){if(!uid)return;$("e2").textContent="";
+let bot=null;try{bot=(await(await fetch("https://vffcjijwrgerdyujvlcf.supabase.co/functions/v1/telegram-webhook")).json()).bot}catch(e){}
+if(!bot)return $("e2").textContent="No se pudo conectar con el bot de Telegram. Revisá que la función telegram-webhook esté creada.";
+const code=crypto.randomUUID().replace(/-/g,"");
+const {error}=await db.from("driver_private").upsert({user_id:uid,telegram_code:code});
+if(error)return $("e2").textContent="No se pudo preparar la vinculación: "+error.message;
+$("tgst").innerHTML='<a href="https://t.me/'+bot+'?start='+code+'" target="_blank" rel="noopener" style="color:#ffd23f;font-weight:700">👉 Tocá acá para abrir Telegram y después "Iniciar"</a>';
+let n=0;const iv=setInterval(async()=>{n++;const r=await db.from("driver_private").select("telegram_chat_id").eq("user_id",uid).maybeSingle();
+if(r.data&&r.data.telegram_chat_id){clearInterval(iv);estadoTg()}else if(n>40)clearInterval(iv)},3000)}
 async function miCodigo(){if(!uid)return;$("e2").textContent="";
 const r=await db.from("driver_private").select("ntfy_topic").eq("user_id",uid).maybeSingle();let t=r.data&&r.data.ntfy_topic;
 if(!t){t="gptaxi-"+crypto.randomUUID().replace(/-/g,"");const {error}=await db.from("driver_private").upsert({user_id:uid,ntfy_topic:t});if(error)return $("e2").textContent="No se pudo crear el código: "+error.message}
