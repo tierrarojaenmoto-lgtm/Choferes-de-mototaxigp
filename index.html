@@ -205,11 +205,21 @@ let q=db.from("rides").update(u).eq("id",id);if(status==="cotizado")q=q.eq("stat
 const {data,error}=await q.select();
 if(error)$("e2").textContent=error.message;else if(!data.length)$("e2").textContent="Ese pedido ya no está disponible.";
 loadD()}
+/* ---------- Destinatario: teléfono y aviso por WhatsApp ---------- */
+function recipInfo(r){const t=String((r&&r.dropoff)||""),m=t.match(/DESTINATARIO:\s*(.*?)\s*·\s*TEL:\s*([+\d][\d\s().+-]{4,})/i);if(m)return{name:m[1].trim(),tel:m[2].trim()};const m2=t.match(/TEL:\s*([+\d][\d\s().+-]{4,})/i);return m2?{name:"",tel:m2[1].trim()}:null}
+function waNum(tel){let d=String(tel||"").replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.startsWith("549"))return d;if(d.startsWith("54")){d=d.slice(2);if(d.startsWith("0"))d=d.slice(1)}else if(d.startsWith("0"))d=d.slice(1);
+if(d.length>10){for(const a of[2,3,4]){if(d.slice(a,a+2)==="15"&&d.length-2===10){d=d.slice(0,a)+d.slice(a+2);break}}}
+if(d.length===10)return"549"+d;if(d.length===11&&d.startsWith("9"))return"54"+d;return d}
+function avisarPuerta(r,btn){const ri=recipInfo(r);if(!ri)return;const num=waNum(ri.tel),negocio=String(r.client_name||"").split(" · Tel.")[0].trim(),chofer=r.driver_name||"tu chofer";
+const msg="Hola"+(ri.name?" "+ri.name:"")+" 👋, soy "+chofer+" de GPTAXI. Tu paquete"+(negocio?" de "+negocio:"")+" ya está en la puerta 📦. ¡Salí a recibirlo!";
+window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank");if(btn)btn.textContent="✅ Aviso enviado · tocá para reenviar"}
 function card(r,label,next,info){const c=el("div","c");c.append(el("b",0,r.pickup+" → "+r.dropoff),el("span",0,"Cliente: "+(r.client_name||"sin nombre")+(r.distance_km!=null?" · ≈ "+r.distance_km+" km":"")));
 if(r.pickup_loc||r.dropoff_loc)c.prepend(el("span","st urgent","🗺️ "+[r.pickup_loc,r.dropoff_loc&&r.dropoff_loc!==r.pickup_loc?"→ "+r.dropoff_loc:""].filter(Boolean).join(" ")));
 if(r.price!=null)c.append(el("br"),el("b",0,"Tarifa: "+money(r.price)));
 if(r.pickup_exact)c.append(el("br"),el("b",0,"📍 Ubicación exacta por GPS"+(r.pickup_accuracy?" (±"+r.pickup_accuracy+" m)":"")));
 if(r.pickup_lat!=null){c.append(el("br"));const a=el("a",0,"Abrir recogida en Google Maps");a.href="https://www.google.com/maps/dir/?api=1&destination="+r.pickup_lat+","+r.pickup_lng;a.target="_blank";a.rel="noopener";c.append(a)}
+{const ri=recipInfo(r);if(ri){const bx=el("div","c");bx.style.cssText="margin-top:10px;border:2px dashed var(--y)";bx.append(el("b",0,"📦 Recibe: "+(ri.name||"destinatario")),el("br"),el("b",0,"📞 "+ri.tel));
+if(["aceptado","en_camino","en_viaje"].includes(r.status)){const wb=el("button",0,"📍 Avisar que estoy en la puerta");wb.type="button";wb.onclick=()=>avisarPuerta(r,wb);bx.append(wb)}c.append(bx)}}
 if(info)c.append(el("p","s",info));
 if(label){const b=el("button",0,label);b.onclick=()=>setS(r.id,next);c.append(b)}return c}
 function quote(r,nr){const c=card(r);c.className="c alert";c.prepend(el("span","st urgent","🚨 NUEVO VIAJE"));const i=el("input");i.type="number";i.inputMode="numeric";i.min=0;i.id="pr"+r.id;
@@ -238,7 +248,7 @@ if(error)return $("e2").textContent=error.message;
 const act=["cotizado","aceptado","en_camino","en_viaje"],mine=n?data.filter(r=>act.includes(r.status)&&r.driver_name===n&&!(r.status==="cotizado"&&Date.now()-new Date(r.quoted_at||r.created_at)>6e5)):[],nw=data.filter(r=>r.status==="pendiente"&&Date.now()-new Date(r.created_at)<18e5&&!(r.rejected_by||[]).includes(n)),
 done=n?data.filter(r=>r.status==="finalizado"&&r.driver_name===n&&!r.driver_hidden):[];
 data.filter(r=>r.status==="cotizado"&&r.driver_name===n&&Date.now()-new Date(r.quoted_at||r.created_at)>6e5).forEach(r=>liberar(r.id));
-const ids=nw.map(r=>r.id);{const nu=seen&&n&&$("av").checked?nw.find(r=>!seen.has(r.id)):null;if(nu)notif("🏍️ ¡NUEVO VIAJE!"+(nu.pickup_loc?" · "+nu.pickup_loc:""),"📍 "+nu.pickup+"\n🏁 "+nu.dropoff,"viaje-"+nu.id)}seen=new Set(ids);
+const ids=nw.map(r=>r.id);{const nu=seen&&n&&$("av").checked?nw.find(r=>!seen.has(r.id)):null;if(nu)notif("🏍️ ¡NUEVO VIAJE!"+(nu.pickup_loc?" · "+nu.pickup_loc:""),"📍 "+nu.pickup+"\n🏁 "+nu.dropoff+(recipInfo(nu)?"\n📞 Recibe: "+(recipInfo(nu).name||"destinatario")+" · "+recipInfo(nu).tel:""),"viaje-"+nu.id)}seen=new Set(ids);
 activeIds=mine.filter(r=>r.status!=="cotizado").map(r=>r.id);track(activeIds.length>0);
 const sum=m=>done.filter(r=>r.pay_method===m).reduce((a,r)=>a+Number(r.price||0),0),t=el("div","c");
 t.append(el("b","price",money(done.reduce((a,r)=>a+Number(r.price||0),0))),el("span",0,done.length+" viajes · Efectivo "+money(sum("efectivo"))+" · Transferencia "+money(sum("transferencia"))));$("tot").replaceChildren(t);
